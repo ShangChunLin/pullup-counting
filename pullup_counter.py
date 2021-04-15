@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import cv2
@@ -13,7 +13,7 @@ import torchvision
 #from torchvision.models.detection.anchor_utils import AnchorGenerator
 
 
-# In[5]:
+# In[2]:
 
 
 import numpy as np
@@ -22,7 +22,7 @@ from torchvision.transforms import transforms as transforms
 import time
 
 
-# In[6]:
+# In[3]:
 
 
 # pairs of edges for 17 of the keypoints detected from try and error
@@ -35,7 +35,7 @@ point = np.asarray(edges)
 point_numbers = len(set(point.flatten()))
 
 
-# In[7]:
+# In[4]:
 
 
 def draw_keypoints_and_boxes(outputs, image,pullups=0):
@@ -89,7 +89,7 @@ def draw_keypoints_and_boxes(outputs, image,pullups=0):
     return image,sucuess,cor 
 
 
-# In[8]:
+# In[5]:
 
 
 def get_model(min_size=800):
@@ -112,7 +112,7 @@ def get_model(min_size=800):
     return model
 
 
-# In[9]:
+# In[6]:
 
 
 # transform to convert the image to tensor
@@ -121,7 +121,7 @@ transform = transforms.Compose([
 ])
 
 
-# In[10]:
+# In[7]:
 
 
 # set the computation device
@@ -130,12 +130,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = get_model().to(device).eval()
 
 
-# In[11]:
+# In[8]:
 
 
 # Test on single figure
 args={}
-args['input'] = "/home/sam/Dropbox/Camera Uploads/PXL_20210413_223143520.MP.jpg"
+args['input'] = "Free_use_human_standing_simple.jpg"
 image_path = args['input']
 image = cv2.imread(image_path)
 #image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -154,32 +154,44 @@ with torch.no_grad():
 output_image,sucess,cor = draw_keypoints_and_boxes(outputs, orig_numpy)
 
 
-# In[12]:
-
-
-plt.imshow(output_image)
-
-
-# In[13]:
+# In[9]:
 
 
 outputs;
 
 
-# In[14]:
+# In[10]:
 
 
 cor;
 
 
-# In[15]:
+# In[11]:
 
 
+plt.imshow(output_image)
 coordinate = outputs[0]['keypoints'][0].cpu().detach().numpy()
-plt.scatter(coordinate[:,0],-coordinate[:,1])
+plt.scatter(coordinate[:,0],coordinate[:,1])
+plt.xlim([0,image.shape[3]])
+plt.ylim([image.shape[2],0])
+for i,p in enumerate( coordinate):
+    #print(p)
+    plt.text(p[0],p[1],str(i))
 
 
-# In[16]:
+# In[12]:
+
+
+coordinate
+
+
+# In[13]:
+
+
+image.shape
+
+
+# In[14]:
 
 
 #!mkdir outputs
@@ -194,32 +206,34 @@ frame_width = int(cap.get(3))
 frame_height = int(cap.get(4))
 # set the save path
 save_path = "./outputs/real_time_"+str(args['min_size'])+".mp4"
-# define codec and create VideoWriter object 
-#w,h = 540,960
+
+w=400           #change w and h for dimensions 
+h=frame_height  #of interested area
+
 out = cv2.VideoWriter(save_path, 
                       cv2.VideoWriter_fourcc(*'mp4v'), 5, 
-                      (400,frame_height))
+                      (w,h)) 
 print(frame_height,frame_width)
 frame_count = 0 # to count total frames
 total_fps = 0 # to get the final frames per second
 
 
-# In[16]:
+# In[15]:
 
 
 # read until end of video
-
+h0,w0=0,0 #origin coordinate for interested area
 cors=[]
 num_frame=0
 frames=[]
 state=-1 #-1 = down, 1 = up
 pullups=0
 initial_time =time.time()
-delta = 3
+delta = 3 #wait 3 second to start
 while(cap.isOpened()):
     # capture each frame of the video
     ret, frame = cap.read()
-    frame = frame[:,:400,:]
+    frame = frame[h0:h0+h,w0:w0+w,:] 
     #print(frame.shape)
     #frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
     #count+=1
@@ -242,11 +256,11 @@ while(cap.isOpened()):
         end_time = time.time()
         output_image,sucess,cor = draw_keypoints_and_boxes(output_image, orig_frame,pullups)
         if(sucess==False):continue
-        ys = np.mean(cor[0][1:5,1])
-        th = np.mean(cor[0][7:9,1])
+        ys = np.mean(cor[0][1:5,1]) #1~4=face
+        th = np.mean(cor[0][7:9,1]) # 7 &8  elbows / 5&6 shoulders
         #print(ys,th,state,(ys<th),(ys<th)*state,cor[0][7,1],cor[0][5,1])
         if((np.sign(ys-th)*state)==-1):
-            pullups+=(state==1)*(cor[0][7,1]<cor[0][5,1])
+            pullups+=(state==1)*(cor[0][7,1]<cor[0][5,1] or cor[0][8,1]<cor[0][6,1])
             state*=-1
         num_frame+=1
         #print(num_frame)
@@ -273,25 +287,25 @@ while(cap.isOpened()):
         break
 
 
-# In[17]:
+# In[16]:
 
 
 #len(cors)
 
 
-# In[18]:
+# In[17]:
 
 
 #len(frames)
 
 
-# In[19]:
+# In[18]:
 
 
 plt.imshow(frames[30])
 
 
-# In[20]:
+# In[19]:
 
 
 cors=np.asarray(cors)
@@ -305,29 +319,32 @@ for cor in cors[30:31]:
         x=np.asarray(x)
         y=np.asarray(y)
         plt.plot(x,y,'--')
-plt.xlim([0,320])
-plt.ylim([640,0])
+plt.xlim([0,w])
+plt.ylim([h,0])
+
+
+# In[20]:
+
+
+ys = [np.mean(cor[0][1:5,1]) for cor in cors]
+ys2 = [np.mean(cor[0][7:9,1]) for cor in cors]
+ys3 = [cor[0][5,1] for cor in cors]
+ys4 = [cor[0][6,1] for cor in cors]
+
+plt.plot(ys,".")
+plt.plot(ys2,".")
+plt.plot(ys3,".")
+plt.plot(ys4,".")
+#plt.ylim([190,210])
 
 
 # In[21]:
 
 
-ys = [np.mean(cor[0][1:5,1]) for cor in cors]
-ys2 = [np.mean(cor[0][7:9,1]) for cor in cors]
-
-plt.plot(ys,".")
-plt.plot(ys2,".")
-
-#plt.ylim([190,210])
-
-
-# In[22]:
-
-
 #ys
 
 
-# In[23]:
+# In[25]:
 
 
 # release VideoCapture()
@@ -337,17 +354,19 @@ cv2.destroyAllWindows()
 # calculate and print the average FPS
 avg_fps = total_fps / frame_count
 print(f"Average FPS: {avg_fps:.3f}")
+
+#####no idea why, but without it output video will not working 
 save_path = "./outputs/dummpy.mp4"
 # define codec and create VideoWriter object 
 #w,h = 540,960
 out = cv2.VideoWriter(save_path, 
                       cv2.VideoWriter_fourcc(*'mp4v'), 20, 
                       (frame_width,frame_height))
-#!rm ./outputs/dummpy.mp4
+import os
+os.system("rm ./outputs/dummpy.mp4")
 
 
 # In[ ]:
-
 
 
 
