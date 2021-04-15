@@ -5,4 +5,4 @@ Using torchvision (keypoint detection) and opencv to count pullups in real time 
 
 It is almost real-time (fps~3) with my onboard 1050
 
-![example](https://github.com/ShangChunLin/pullup-counting/blob/main/real_time_working.gif)
+![example](https://github.com/ShangChunLin/pullup-counting/blob/main/outputs/real_time_working.gif)
